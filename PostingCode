@@ -1,0 +1,16 @@
+import requests
+
+url = "http://log.brewfather.net/ispindel"
+
+querystring = {"id":"XyZZy"}
+
+payload = "{ \"name\": \"black\",\r\n  \"ID\": 4907697,\r\n  \"angle\": 26.78181,\r\n  \"temperature\": 20.5625,\r\n  \"battery\": 4.118874,\r\n  \"gravity\": 2.553002,\r\n  \"interval\": 900,\r\n  \"RSSI\": -96 }"
+headers = {
+    'Content-Type': "application/json",
+    'cache-control': "no-cache",
+    'Postman-Token': "42a2dacc-0fda-4bce-b3cd-2bbb1be581a1"
+    }
+
+response = requests.request("POST", url, data=payload, headers=headers, params=querystring)
+
+print(response.text)
