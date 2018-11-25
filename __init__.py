@@ -11,8 +11,9 @@ from thread import start_new_thread
 import logging
 import requests
 import datetime
+import json
 
-DEBUG = True
+DEBUG = False
 drop_first = None
 
 # Parameters
@@ -55,45 +56,33 @@ def brewfather_iSpindel_background_task(api):
     if brewfather_iSpindel_id is None:
         return False
 
-    now = datetime.datetime.now()
+    payload = {}
     for key, value in cbpi.cache.get("sensors").iteritems():
-	log("key %s value.name %s value.instance.last_value %s value.type %s" % (key, value.name, value.instance.last_value, value.type))
-#
-# TODO: IMPORTANT - Temp sensor must be defined preceeding Gravity sensor and 
-#		    each Tilt must be defined as a pair without another Tilt
-#		    defined between them, e.g.
-#			RED Temperature
-#			RED Gravity
-#			PINK Temperature
-#			PINK Gravity
-#
-	if (value.type == "iSpindel"):
-	    if (value.instance.sensorType == "Temperature"):
-# A Tilt Temperature device is the first of the Tilt pair of sensors so
-#    reset the data block to empty
-		payload = "{ "
-		payload += " \"name\": \"%s\",\r\n" % value.instance.name
-		payload += " \"ID\": \"%s\",\r\n" % value.instance.id
-#		payload += " \"angle\": \"%s\",\r\n" % value.instance.angle
-		temp = value.instance.last_value
-# brewfather expects *F so convert back if we use C
-		if (cbpi.get_config_parameter("unit",None) == "C"):
-		    temp = value.instance.last_value * 1.8 + 32
-                payload += " \"temperature\": \"%s\",\r\n" % temp
-	    if (value.instance.sensorType == "Battery"):
-                payload += " \"battery\": \"%s\",\r\n" % value.instance.last_value
-	    if (value.instance.sensorType == "Gravity"):
-                payload += " \"gravity\": \"%s\",\r\n" % value.instance.last_value
-                payload += " \"interval\": \"900\",\r\n"
-                payload += " \"RSSI\": \"-96\" }"
-		log("Payload %s" % payload)
-		url = "http://log.brewfather.net/ispindel"
-		headers = {
-		    'Content-Type': "application/json",
-		    'Cache-Control': "no-cache"
-		    }
-		id = cbpi.get_config_parameter("brewfather_iSpindel_id", None)
-		querystring = {"id":id}
-		r = requests.request("POST", url, data=payload, headers=headers, params=querystring)
-		log("Result %s" % r.text)
+        log("key %s value.name %s value.instance.last_value %s value.type %s" % (key, value.name, value.instance.last_value, value.type))
+
+        if (value.type == "iSpindel"):
+            if (value.instance.sensorType == "Temperature"):
+                temp = value.instance.last_value
+                # brewfather expects *F so convert back if we use C
+                if (cbpi.get_config_parameter("unit",None) == "C"):
+                    temp = temp * 1.8 + 32
+                payload['temperature'] = temp
+                payload['name'] = value.instance.key
+            if (value.instance.sensorType == "RSSI"):
+                payload['RSSI'] = value.instance.last_value
+            if (value.instance.sensorType == "Battery"):
+                payload['battery'] = value.instance.last_value
+            if (value.instance.sensorType == "Gravity"):
+                payload['angle'] = value.instance.stored_angle
+                payload['gravity'] =value.instance.last_value
+    url = "http://log.brewfather.net/ispindel"
+    headers = {
+        'Content-Type': "application/json",
+        'Cache-Control': "no-cache"
+    }
+    id = cbpi.get_config_parameter("brewfather_iSpindel_id", None)
+    querystring = {"id":id}
+    log("Payload %s querystring %s" % (json.dumps(payload), querystring))
+    r = requests.request("POST", url, json=payload, headers=headers, params=querystring)
+    log("Result %s" % r.text)
     log("brewfather_iSpindel done")
